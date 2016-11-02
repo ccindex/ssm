@@ -1,0 +1,96 @@
+目录结构说明：
+文件名	                  作用
+src	                          根目录，没什么好说的，下面有main和test。
+|-main           主要目录，可以放java代码和一些资源文件。
+  |-java         存放我们的java代码，这个文件夹要使用Build Path -> Use as Source Folder，这样看包结构会方便很多，新建的包就相当于在这里新建文件夹咯。
+  |-resources    存放资源文件，譬如各种的spring，mybatis，log配置文件。
+    |-mapper     存放dao中每个方法对应的sql，在这里配置，无需写daoImpl。
+    |-spring     这里当然是存放spring相关的配置文件，有dao service web三层。
+  |-sql          其实这个可以没有，但是为了项目完整性还是加上吧。
+  |-webapp       这个貌似是最熟悉的目录了，用来存放我们前端的静态资源，如jsp js css。
+    |-resources  这里的资源是指项目的静态资源，如js css images等。
+    |-WEB-INF    很重要的一个目录，外部浏览器无法访问，只有项目内部才能访问，可以把jsp放在这里，另外就是web.xml了。你可能有疑问了，为什么上面java中的resources里面的配置文件不放在这里，那么是不是会被外部窃取到？你想太多了，部署时候基本上只有webapp里的会直接输出到根目录，其他都会放入WEB-INF里面，项目内部依然可以使用classpath:XXX来访问，好像IDE里可以设置部署输出目录，这里扯远了~
+|-test           这里是测试分支。
+  |-java         测试java代码，应遵循包名相同的原则，这个文件夹同样要使用Build Path -> Use as Source Folder，这样看包结构会方便很多。
+  |-resources    没什么好说的，好像也很少用到，但这个是maven的规范。
+
+
+
+
+
+
+包结构说明：
+包名	               名称                             作用
+dao	                数据访问层（接口）  与数据打交道，可以是数据库操作，也可以是文件读写操作，甚至是redis缓存操作，总之与数据操作有关的都放在这里，也有人叫做dal或者数据持久层都差不多意思。为什么没有daoImpl，因为我们用的是MyBatis，所以可以直接在配置文件中实现接口的每个方法。
+entity	        实体类	                    一般与数据库的表相对应，封装dao层取出来的数据为一个对象，也就是我们常说的pojo，一般只在dao层与service层之间传输。
+dto	                数据传输层	            刚学框架的人可能不明白这个有什么用，其实就是用于service层与web层之间传输，为什么不直接用entity（pojo）？其实在实际开发中发现，很多时间一个entity并不能满足我们的业务需求，可能呈现给用户的信息十分之多，这时候就有了dto，也相当于vo，记住一定不要把这个混杂在entity里面
+service	        业务逻辑（接口）	    写我们的业务逻辑，在设计业务接口时候应该站在“使用者”的角度。额，不要问我为什么这里没显示！IDE调皮我也拿它没办法~
+serviceImpl	业务逻辑（实现）	    实现我们业务接口，一般事务控制是写在这里，没什么好说的。
+web	                控制器	          SpringMVC就是在这里发挥作用的，一般人叫做controller控制器，相当于struts中的action。
+
+
+
+
+
+
+开发流程：
+一、先在spring文件夹里新建spring-dao.xml文件，因为spring的配置太多，我们这里分三层：dao，service，web。
+  1. 读入数据库连接相关参数（可选）
+  2. 配置数据源
+    1) 配置连接属性，可以不读配置项文件直接写
+    2) 配置c3p0，只配了几个常用的
+  3. 配置SqlSessionFactory对象（MyBatis）
+  4. 扫描dao层接口，动态实现dao接口，也就是说不需要daoImple，sql和参数都写在xml文件上
+  
+二、接下来到service层了，在spring文件夹里新建spring-service.xml文件
+  1. 扫描service包所有注解@Service
+  2. 配置事务管理器，把事务管理交由Spring来完成
+  3. 配置基于注解的声明式事务，可以直接在方法上使用@Transactional
+  
+三、配置web层，在Spring文件夹里新建spring-web.xml文件
+  1. 开启SpringMVC注解模式，可以使用@RequestMapping，@PathVariable，@ResponseBody等
+  2. 对静态资源处理，如js，css，jpg等
+  3. 配置jsp显示ViewResolver，例如在controller中某个方法返回一个string类型的"login"，实际上会返回"/WEB-INF/login.jsp"
+  4. 扫描web层@Controller
+
+四、最后就是修改web.xml文件了，它在WEB-INF下。
+
+
+
+
+
+
+SSM框架应用实例（图书管理系统）
+说明：以最常见的“图书管理系统”中【查询图书】和【预约图书】业务来做一个实例。
+
+1. 首先新建数据库名为ssm，再创建两张表：图书表book和预约图书表appointment，并且为book表初始化一些数据
+
+2. 在entity包中添加两个对应的实体，图书实体Book.java和预约图书实体Appointment.java
+
+3. 在dao包新建接口BookDao.java和Appointment.java
+
+4. 这里不需要实现dao接口不用编写daoImpl， MyBatis会给我们动态实现，但是我们需要编写相应的mapper。 在mapper目录里新建两个文件BookDao.xml和AppointmentDao.xml，分别对应上面两个dao接口。
+   mapper总结：namespace是该xml对应的接口全名，select和update中的id对应方法名，resultType是返回值类型，parameterType是参数类型（这个其实可选），最后#{...}中填写的是方法的参数，看懂了是不是很简单！！我也这么觉得~ 还有一个小技巧要交给大家，就是在返回Appointment对象包含了一个属性名为book的Book对象，那么可以使用"book.属性名"的方式来取值，看上面queryByKeyWithBook方法的sql。
+
+5. 接下来test对应的package写我们测试方法吧。 因为我们之后会写很多测试方法，在测试前需要让程序读入spring-dao和mybatis等配置文件，所以我这里就抽离出来一个BaseTest类，只要是测试方法就继承它，这样那些繁琐的重复的代码就不用写那么多了~
+
+6. 那么我们继续service层的编码吧~可能下面开始信息里比较大，大家要做好心理准备~
+      首先，在写我们的业务之前，我们先定义几个预约图书操作返回码的数据字典，我们这类使用枚举类，没听过的小伙伴要好好恶补一下了（我也是最近才学到的= =）
+      新建一个包叫enums，在里面新建一个枚举类AppointStateEnum.java，用来定义预约业务的数据字典
+
+7. 接下来，在dto包下新建AppointExecution.java用来存储我们执行预约操作的返回结果。
+
+8. 咱们终于可以编写业务代码了，在service包下新建BookService.java图书业务接口。
+
+9. 在 service.impl 包下新建 BookServiceImpl.java 使用 BookService 接口，并实现里面的方法。
+
+10.下面我们来测试一下我们的业务代码吧~因为查询图书的业务不复杂，所以这里只演示我们最重要的预约图书业务！！
+
+11.咱们还需要在 dto 包里新建一个封装json返回结果的类 Result.java ，设计成泛型。
+
+12.最后，我们写web层，也就是controller，我们在 web 包下新建 BookController.java 文件。
+
+13. 因为我比较懒，所以我们就不测试controller了,好讨厌写前端，呜呜呜~
+
+
+
